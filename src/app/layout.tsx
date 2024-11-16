@@ -8,7 +8,8 @@ import {
  
 } from '@clerk/nextjs'
 import './globals.css'
-
+import Providers from "../components/ui/Providers";
+import {Toaster} from 'react-hot-toast'
 
 
 export const metadata: Metadata = {
@@ -23,6 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
+      <Providers>
     <html lang="en">
       <body>
         <SignedOut>
@@ -33,7 +35,10 @@ export default function RootLayout({
         </SignedIn>
         {children}
       </body>
+      <Toaster/>
     </html>
+    
+    </Providers>
   </ClerkProvider>
   );
 }
