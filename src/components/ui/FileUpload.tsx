@@ -6,8 +6,10 @@ import { useDropzone } from "react-dropzone";
 import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 const FileUpload = () => {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const mutation = useMutation({
@@ -62,10 +64,22 @@ const FileUpload = () => {
           return;
         }
 
-        mutation.mutate({ file_key: data.file_key, file_name: data.file_name });
-        console.log("File uploaded to S3:", data);
+        mutation.mutate(
+          { file_key: data.file_key, file_name: data.file_name },
+          {
+            onSuccess: ({ chat_id }) => {
+              toast.success(`File uploaded successfully. Chat ID: ${chat_id}`);
+              router.push(`/chat/${chat_id}`);
+            },
+            onError: (error) => {
+              toast.error("error creating chat");
+              console.error(error);
+            },
+          }
+        );
       } catch (error) {
         console.error("Error uploading file to S3:", error);
+
         toast.error("Error uploading file to S3");
         setIsLoading(false); // Stop loading
       }
