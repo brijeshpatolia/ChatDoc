@@ -1,18 +1,19 @@
 "use client";
 import { uploadToS3 } from "@/lib/s3";
-import { Inbox } from "lucide-react";
-import React, { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Inbox, Loader2 } from "lucide-react";
+import React from "react";
 import { useDropzone } from "react-dropzone";
 import axios from "axios";
-import { useMutation } from "@tanstack/react-query";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+
+// https://github.com/aws/aws-sdk-js-v3/issues/4126
 
 const FileUpload = () => {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const mutation = useMutation({
+  const [uploading, setUploading] = React.useState(false);
+  const { mutate, isPending } = useMutation({
     mutationFn: async ({
       file_key,
       file_name,
@@ -24,19 +25,7 @@ const FileUpload = () => {
         file_key,
         file_name,
       });
-      return response.data; // Adjust based on the API response
-    },
-    onSuccess: (data) => {
-      console.log("Mutation success", data);
-      toast.success("File uploaded successfully");
-      setIsLoading(false); // Stop loading
-    },
-    onError: (error) => {
-      console.error("Mutation error", error);
-      toast.error(
-        "Error while uploading the file. Please try again. If the issue persists, contact support."
-      );
-      setIsLoading(false); // Stop loading
+      return response.data;
     },
   });
 
@@ -44,64 +33,53 @@ const FileUpload = () => {
     accept: { "application/pdf": [".pdf"] },
     maxFiles: 1,
     onDrop: async (acceptedFiles) => {
-      console.log("Accepted files:", acceptedFiles);
       const file = acceptedFiles[0];
-
       if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size exceeds 10MB");
+        toast.error("File too large");
         return;
       }
 
-      setIsLoading(true); // Start loading
-
       try {
+        setUploading(true);
         const data = await uploadToS3(file);
-        if (!data?.file_key || !data?.file_name) {
-          toast.error(
-            "Something went wrong while uploading the file to S3. Please try again. If the issue persists, contact support."
-          );
-          setIsLoading(false); // Stop loading
+        console.log("meow", data);
+        if (!data?.file_key || !data.file_name) {
+          toast.error("Something went wrong");
           return;
         }
-
-        mutation.mutate(
-          { file_key: data.file_key, file_name: data.file_name },
-          {
-            onSuccess: ({ chat_id }) => {
-              toast.success(`File uploaded successfully. Chat ID: ${chat_id}`);
-              router.push(`/chat/${chat_id}`);
-            },
-            onError: (error) => {
-              toast.error("error creating chat");
-              console.error(error);
-            },
-          }
-        );
+        mutate(data, {
+          onSuccess: ({ chat_id }) => {
+            toast.success("Chat created!");
+            router.push(`/chat/${chat_id}`);
+          },
+          onError: (err) => {
+            toast.error("Error creating chat");
+            console.error(err);
+          },
+        });
       } catch (error) {
-        console.error("Error uploading file to S3:", error);
-
-        toast.error("Error uploading file to S3");
-        setIsLoading(false); // Stop loading
+        console.log(error);
+      } finally {
+        setUploading(false);
       }
     },
   });
-
   return (
     <div className="p-2 bg-white rounded-xl">
       <div
         {...getRootProps({
-          className: `border-dashed border-2 rounded-xl cursor-pointer bg-gray-50 py-8 flex justify-center items-center flex-col ${
-            isLoading ? "opacity-50 cursor-not-allowed" : ""
-          }`,
+          className:
+            "border-dashed border-2 rounded-xl cursor-pointer bg-gray-50 py-8 flex justify-center items-center flex-col",
         })}
-        style={{ pointerEvents: isLoading ? "none" : "auto" }}
       >
-        <input {...getInputProps()} disabled={isLoading} />
-        {isLoading ? (
-          <div className="flex flex-col items-center">
-            <div className="loader w-6 h-6 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-2 text-sm text-slate-400">Uploading...</p>
-          </div>
+        <input {...getInputProps()} />
+        {uploading || isPending ? (
+          <>
+            <Loader2 className="h-10 w-10 text-blue-500 animate-spin" />
+            <p className="mt-2 text-sm text-slate-400">
+              Spilling Tea to GPT...
+            </p>
+          </>
         ) : (
           <>
             <Inbox className="w-10 h-10 text-blue-500" />
@@ -112,5 +90,6 @@ const FileUpload = () => {
     </div>
   );
 };
+
 
 export default FileUpload;
