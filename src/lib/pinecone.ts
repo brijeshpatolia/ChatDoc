@@ -118,7 +118,8 @@ export const truncateStringByBytes = (str: string, bytes: number): string => {
 async function prepareDocument(page: PDFpage) {
   try {
     console.log(`Preparing page: ${page.metadata.loc.pageNumber}`);
-    let { pageContent, metadata } = page;
+    const { metadata } = page;
+    let { pageContent } = page;
     pageContent = pageContent.replace(/\n/g, "");
     console.log("Cleaned page content:", pageContent.slice(0, 100)); // Preview first 100 characters
 
